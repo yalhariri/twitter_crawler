@@ -27,23 +27,6 @@ import logging.handlers
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format='(%(asctime)s) [%(process)d] %(levelname)s: %(message)s')
 
-try:
-    with open(r'../.config/.config.yml') as file:
-        # The FullLoader parameter handles the conversion from YAML
-        # scalar values to Python the dictionary format
-        configs = yaml.load(file, Loader=yaml.FullLoader)
-        BEARER_TOKEN = configs['BEARER_TOKEN']
-        OUTPUT_FOLDER = configs['OUTPUT_FOLDER']
-        START_DATE= [int(v) for v in configs['START_DATE'].split('/')]
-        END_DATE= [int(v) for v in configs['END_DATE'].split('/')]
-        WAIT_TIME = int(configs['WAIT_TIME'])
-        QUERY= configs['QUERY'].split(',')
-        LOG= configs['LOG']
-except Exception as exp:
-    print(exp)
-    print('Please make sure that config/config.yml has the required information')
-    BEARER_TOKEN=""
-
 def create_headers(bearer_token):
     headers = {"Authorization": "Bearer {}".format(bearer_token)}
     return headers
@@ -265,18 +248,33 @@ if __name__=="__main__":
     import argparse
     
     parser = argparse.ArgumentParser()
+    parser.add_argument('-c','--config', help="configuration setting file.", default='.config.yml')
     parser.add_argument('-cmd','--command', help="commands: search, extract_info", default=None)
     parser.add_argument('-tw','--tweets', help="tweets file inside the OTPUT_FOLDER", default='')
     parser.add_argument('-us','--users', help="users file inside the OTPUT_FOLDER", default='')
     parser.add_argument('-in','--includes', help="includes file inside the OTPUT_FOLDER", default='')
     parser.add_argument('-ty','--type', help="type of data, json or csv", default='csv')
     
-    
     args = parser.parse_args()
-
+    
+    try:
+        with open(r'../.config/'+str(args.config)) as file:
+            configs = yaml.load(file, Loader=yaml.FullLoader)
+            BEARER_TOKEN = configs['BEARER_TOKEN']
+            OUTPUT_FOLDER = configs['OUTPUT_FOLDER']
+            START_DATE= [int(v) for v in configs['START_DATE'].split('/')]
+            END_DATE= [int(v) for v in configs['END_DATE'].split('/')]
+            WAIT_TIME = int(configs['WAIT_TIME'])
+            QUERY= configs['QUERY'].split(',')
+            LOG= configs['LOG']
+    except Exception as exp:
+        print(exp)
+        print('Please make sure that config/config.yml has the required information')
+        BEARER_TOKEN=""
     if not args.command:
         sys.exit('ERROR: COMMAND is required')
-
+        
+    
     formatter = logging.Formatter('(%(asctime)s) [%(process)d] %(levelname)s: %(message)s')
     handler = logging.handlers.RotatingFileHandler(
         '%s/%s.log'%(LOG,args.command), maxBytes=50 * 1024 * 1024, backupCount=10)

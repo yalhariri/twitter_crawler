@@ -1,9 +1,11 @@
 # Twitter Crawler based on Twitter API V2
 
-You need to create the file: 
+You need to create a yaml file with the following path and name: 
 ```
 ../.config/.config.yml 
 ```
+
+or you can set a file name but you need to add the parameter -c filename when running the code.
 
 ### This file should contain the basic information including:
 
@@ -25,9 +27,9 @@ You need to create the file:
 
 # To run the commands:
 
-## 1) Search for tweets that contain terms/tokens:
+## 1) Search for tweets that contain terms/tokens with the configuration from filename.yml:
 ```
-  python twitter_searcher.py -cmd search
+  python twitter_searcher.py -cmd search -c filename.yml
 ```
 
 ## 2) Extract information from tweets to files:
