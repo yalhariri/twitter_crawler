@@ -207,7 +207,7 @@ def search_for_tokens(headers):
                             'end_time': dates[i+1]}
             print(query_params['start_time'] , ' TO ', query_params['end_time'])
             
-            next_token = True
+            next_token = 'b26v89c19zqg8o3fn0gl5fulrau83vt54qqh4npg3t6d9'
             while (next_token):
                 print('next_token:' , str(next_token))
                 response = None
@@ -222,15 +222,25 @@ def search_for_tokens(headers):
                         response = None
                 if response != None:
                     json_response = response.json()
-                    tweets = json_response['data']
-                    users = json_response['includes']['users']
-                    includes = json_response['includes']['tweets']
+                    tweets = None
+                    users = None
+                    includes = None
+                    if 'data' in json_response.keys():
+                        tweets = json_response['data']
+                    if 'includes' in json_response.keys():
+                        if 'users' in json_response['includes'].keys():
+                            users = json_response['includes']['users']
+                        if 'tweets' in json_response['includes'].keys():
+                            includes = json_response['includes']['tweets']
                     meta = json_response['meta']
                     
                     filename = "{} TO {}".format(dates[i].replace('T00:00:00Z',''),dates[i+1].replace('T00:00:00Z',''))
-                    write_data_to_file(tweets, 'tweets_'+filename, OUTPUT_FOLDER)
-                    write_data_to_file(users, 'users_'+filename, OUTPUT_FOLDER)
-                    write_data_to_file(includes, 'includes_'+filename, OUTPUT_FOLDER)
+                    if tweets != None:
+                        write_data_to_file(tweets, 'tweets_'+filename, OUTPUT_FOLDER)
+                    if users != None:
+                        write_data_to_file(users, 'users_'+filename, OUTPUT_FOLDER)
+                    if includes != None:
+                        write_data_to_file(includes, 'includes_'+filename, OUTPUT_FOLDER)
 
                     if 'next_token' in meta.keys():
                         next_token = meta['next_token']
@@ -241,9 +251,6 @@ def search_for_tokens(headers):
                 fout.write('{}\n'.format(dates[i]))
 
 if __name__=="__main__":
-
-    if (not os.path.exists(LOG)):
-        os.makedirs(LOG)
 
     import argparse
     
@@ -271,6 +278,9 @@ if __name__=="__main__":
         print(exp)
         print('Please make sure that config/config.yml has the required information')
         BEARER_TOKEN=""
+    if (not os.path.exists(LOG)):
+        os.makedirs(LOG)
+        
     if not args.command:
         sys.exit('ERROR: COMMAND is required')
         
