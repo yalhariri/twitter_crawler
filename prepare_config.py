@@ -9,17 +9,18 @@ Created on Wed Feb  2 16:50:13 2022
 
 import yaml
 
-
-with open(r'.config_kind.yml') as file:
-    documents = yaml.full_load(file)
-
-    for item, doc in documents.items():
-        print(item, ":", doc)
-
-output_folder = "../.config"
-
+documents = {'name': 'TwitterV2',
+ 'BEARER_TOKEN': '',
+ 'OUTPUT_FOLDER': './../data_sample',
+ 'START_DATE': '2022/1/20',
+ 'END_DATE': '2022/2/1',
+ 'WAIT_TIME': 10,
+ 'LOG': './../.logs',
+ 'QUERY': '#kindness'}
 
 import os
+
+output_folder = "../.config/"
 
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)

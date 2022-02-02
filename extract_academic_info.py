@@ -9,8 +9,8 @@ tweet_tokenizer = TweetTokenizer()
 from os import listdir
 from os.path import isfile, join
 
-data_path = "../data_kind/"
-OUTPUT_FOLDER = '../data_kind/data/'
+data_path = "../data_sample/"
+OUTPUT_FOLDER = '../data_sample/data/'
 
 
 if not os.path.exists(OUTPUT_FOLDER):
