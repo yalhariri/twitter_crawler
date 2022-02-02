@@ -162,7 +162,7 @@ def extract_tweets_contents(includes_file='', users_file='', tweets_file='',type
                 fout.write('%s\n'%json.dumps(combined_tweets_dict2[k],ensure_ascii=False))
                 
 
-def search_for_tokens(headers):
+def search_for_tokens(headers, next_token):
     search_url = "https://api.twitter.com/2/tweets/search/all"
     
     days = [1, 10,20]
@@ -190,6 +190,7 @@ def search_for_tokens(headers):
     
 
     print(QUERY)
+    print(next_token)
 
     print("starting after {} sec".format(WAIT_TIME))
     time.sleep(WAIT_TIME)
@@ -207,7 +208,7 @@ def search_for_tokens(headers):
                             'end_time': dates[i+1]}
             print(query_params['start_time'] , ' TO ', query_params['end_time'])
             
-            next_token = 'b26v89c19zqg8o3fn0gl5fulrau83vt54qqh4npg3t6d9'
+            #next_token = 'b26v89c19zqg8o3fn0gl5fulrau83vt54qqh4npg3t6d9'
             while (next_token):
                 print('next_token:' , str(next_token))
                 response = None
@@ -274,6 +275,7 @@ if __name__=="__main__":
             WAIT_TIME = int(configs['WAIT_TIME'])
             QUERY= configs['QUERY'].split(',')
             LOG= configs['LOG']
+            next_token= configs['next_token']
     except Exception as exp:
         print(exp)
         print('Please make sure that config/config.yml has the required information')
@@ -296,7 +298,7 @@ if __name__=="__main__":
     if BEARER_TOKEN != "":
         headers = create_headers(BEARER_TOKEN)
         if args.command == 'search':
-            search_for_tokens(headers)
+            search_for_tokens(headers, next_token)
         elif args.command == 'extract_info':
             if args.tweets != '' and args.users != '' and args.includes != '':
                 extract_tweets_contents(args.includes, args.users, args.tweets, args.type)
