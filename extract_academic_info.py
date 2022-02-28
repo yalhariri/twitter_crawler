@@ -9,8 +9,9 @@ tweet_tokenizer = TweetTokenizer()
 from os import listdir
 from os.path import isfile, join
 
-data_path = "../data_sample/"
-OUTPUT_FOLDER = '../data_sample/data/'
+configs = yaml.load(file, Loader=yaml.FullLoader)
+data_path = configs['EXTRACT_DATA_INPUT']
+OUTPUT_FOLDER = configs['EXTRACT_DATA_OUTPUT']
 
 
 if not os.path.exists(OUTPUT_FOLDER):

@@ -23,12 +23,110 @@ import time
 import yaml
 import logging
 import logging.handlers
-
+global BEARER_TOKEN
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format='(%(asctime)s) [%(process)d] %(levelname)s: %(message)s')
+################
 
-def create_headers(bearer_token):
-    headers = {"Authorization": "Bearer {}".format(bearer_token)}
+def bearer_oauth(r):
+    """
+    Method required by bearer token authentication.
+    """
+    r.headers["Authorization"] = f"Bearer {BEARER_TOKEN}"
+    r.headers["User-Agent"] = "v2FilteredStreamPython"
+    return r
+
+
+def get_rules():
+    response = requests.get(
+        "https://api.twitter.com/2/tweets/search/stream/rules", auth=bearer_oauth
+    )
+    if response.status_code != 200:
+        raise Exception(
+            "Cannot get rules (HTTP {}): {}".format(response.status_code, response.text)
+        )
+    print(json.dumps(response.json()))
+    return response.json()
+
+
+def delete_all_rules(rules):
+    if rules is None or "data" not in rules:
+        return None
+    ids = list(map(lambda rule: rule["id"], rules["data"]))
+    payload = {"delete": {"ids": ids}}
+    response = requests.post(
+        "https://api.twitter.com/2/tweets/search/stream/rules",
+        auth=bearer_oauth,
+        json=payload
+    )
+    if response.status_code != 200:
+        raise Exception(
+            "Cannot delete rules (HTTP {}): {}".format(
+                response.status_code, response.text
+            )
+        )
+    print(json.dumps(response.json()))
+
+
+def set_rules(rules):
+    # You can adjust the rules if needed
+    payload = {"add": rules}
+    response = requests.post(
+        "https://api.twitter.com/2/tweets/search/stream/rules",
+        auth=bearer_oauth,
+        json=payload,
+    )
+    if response.status_code != 201:
+        raise Exception(
+            "Cannot add rules (HTTP {}): {}".format(response.status_code, response.text)
+        )
+    print(json.dumps(response.json()))
+
+
+
+def start_streaming(headers, next_token):
+    params = {'tweet.fields': 'attachments,author_id,context_annotations,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,public_metrics,referenced_tweets,reply_settings,source,text,withheld', 
+              'expansions' : 'author_id,referenced_tweets.id,referenced_tweets.id.author_id,entities.mentions.username,attachments.poll_ids,attachments.media_keys,in_reply_to_user_id,geo.place_id',
+              'user.fields': 'description,location,protected,verified,url,public_metrics,created_at,name,username,id'}
+    response = requests.get(
+        "https://api.twitter.com/2/tweets/search/stream", auth=bearer_oauth, stream=True, params=params
+    )
+    print(response.status_code)
+    if response.status_code != 200:
+        raise Exception(
+            "Cannot get stream (HTTP {}): {}".format(
+                response.status_code, response.text
+            )
+        )
+    for response_line in response.iter_lines():
+        filename = datetime.strftime(datetime.now(), "%Y_%m_%d")
+        if response_line:
+            json_response = json.loads(response_line)
+            try:
+                tweets = None
+                users = None
+                includes = None
+                if 'data' in json_response.keys():
+                    tweets = json_response['data']
+                if 'includes' in json_response.keys():
+                    if 'users' in json_response['includes'].keys():
+                        users = json_response['includes']['users']
+                    if 'tweets' in json_response['includes'].keys():
+                        includes = json_response['includes']['tweets']
+                        
+                if tweets != None:
+                    write_data_to_file(tweets, 'tweets_'+filename, OUTPUT_FOLDER)
+                if users != None:
+                    write_data_to_file(users, 'users_'+filename, OUTPUT_FOLDER)
+                if includes != None:
+                    write_data_to_file(includes, 'includes_'+filename, OUTPUT_FOLDER)
+            except Exception as exp:
+                print('Error: {}'.format(str(exp)))
+                write_data_to_file(json_response, 'ERRORS_'+filename, OUTPUT_FOLDER)
+                
+
+def create_headers(BEARER_TOKEN):
+    headers = {"Authorization": "Bearer {}".format(BEARER_TOKEN)}
     return headers
 
 def connect_to_endpoint(url, headers, params):
@@ -49,8 +147,11 @@ def write_data_to_file(tweets, file_name, folder):
     if not path.exists(folder):
         os.mkdir(folder)
     with open(folder+'/'+file_name,'a+',encoding='utf-8') as fout:
-        for tweet in tweets:
-            fout.write('%s\n'%json.dumps(tweet, ensure_ascii=False))
+        if type(tweets) == list:
+            for tweet in tweets:
+                fout.write('%s\n'%json.dumps(tweet, ensure_ascii=False))
+        else:
+            fout.write('%s\n'%json.dumps(tweets, ensure_ascii=False))
 
 def get_json_content(file_name):
     temp_dict = dict()
@@ -58,11 +159,14 @@ def get_json_content(file_name):
     with open(OUTPUT_FOLDER +'/'+ file_name, 'r', encoding="utf-8") as fin:
         for line in fin.readlines():
             object_ = json.loads(line)
-            temp_dict[object_['id']] = object_
+            print('type of object_: {}'.format(type(object_)))
+            try:
+                temp_dict[object_['id']] = object_
+            except Exception as exp:
+                pass
     return temp_dict
 
 def extract_tweets_contents(includes_file='', users_file='', tweets_file='',type=''):
-    print('here')
     includes_dict = get_json_content(includes_file)
     users_dict = get_json_content(users_file)
     tweets_dict = get_json_content(tweets_file)
@@ -178,7 +282,7 @@ def search_for_tokens(headers, next_token):
                 if da > end_date:
                     break
                 if da >= start_date and da <= end_date:
-                    dates.append(datetime.strftime(da, '%Y-%m-%dT%H:%M:%SZ'))#datetime.strftime(da,'YYYY-MM-DDThh:mm:ssZ'))
+                    dates.append(datetime.strftime(da, '%Y-%m-%dT%H:%M:%SZ'))
                 
     done_dates = []
     try:
@@ -251,8 +355,11 @@ def search_for_tokens(headers, next_token):
             with open('done','a+') as fout:
                 fout.write('{}\n'.format(dates[i]))
 
-if __name__=="__main__":
 
+    
+    
+if __name__=="__main__":
+    
     import argparse
     
     parser = argparse.ArgumentParser()
@@ -262,6 +369,7 @@ if __name__=="__main__":
     parser.add_argument('-us','--users', help="users file inside the OTPUT_FOLDER", default='')
     parser.add_argument('-in','--includes', help="includes file inside the OTPUT_FOLDER", default='')
     parser.add_argument('-ty','--type', help="type of data, json or csv", default='csv')
+    parser.add_argument('-sr','--set_rules', help="set streamer rules", default=False)
     
     args = parser.parse_args()
     
@@ -294,11 +402,30 @@ if __name__=="__main__":
     logger.addHandler(handler)
     logger.info(sys.version)
     
-    
     if BEARER_TOKEN != "":
         headers = create_headers(BEARER_TOKEN)
         if args.command == 'search':
             search_for_tokens(headers, next_token)
+        elif args.command == 'stream':
+            rules = get_rules()
+            print(rules)
+            if args.set_rules:
+                rules = get_rules()
+                print(rules)
+                if rules is not None:
+                    delete = delete_all_rules(rules)
+                rules = []
+                str_ = ""
+                for q in QUERY:
+                    if len(str_) == 0:
+                        str_ = str(q)
+                    else:
+                        str_ += ' OR {}'.format(str(q))
+                rules.append({"value": str_})
+                print(rules)
+                set = set_rules(rules=rules)
+                time.sleep(5)
+            start_streaming(headers, next_token)
         elif args.command == 'extract_info':
             if args.tweets != '' and args.users != '' and args.includes != '':
                 extract_tweets_contents(args.includes, args.users, args.tweets, args.type)
