@@ -51,3 +51,19 @@ or you can set a file name but you need to add the parameter -c filename when ru
   python twitter_searcher.py -cmd extract_info -tw tweets_file -us users_file  -in incldues_file -ty json
   ```
   
+## 3) Streaming:
+
+   ### - Running streamer with setting new tokens (filter) - required for the first time::
+  ```
+  python3 twitter_streamer.py -c ../.config/.configs.yml -cmd stream -sr true -ty csv
+  ```
+
+   ### - Running streamer without setting new tokens (filter):
+  ```
+  python3 twitter_streamer.py -c ../.config/.configs.yml -cmd stream -ty csv
+  ```
+
+   ### - extract infromation from tweets to csv file:
+  ```
+  python3 twitter_streamer.py -c ../.config/.configs.yml -cmd extract_info -tw tweets_2022_02_28 -us users_2022_02_28 -in includes_2022_02_28 -ty csv
+  ```
