@@ -248,6 +248,7 @@ def search_for_tokens(headers, next_token):
                         query_params['next_token'] = next_token
                     else:
                         next_token = False
+                time.sleep(1)
             with open('done','a+') as fout:
                 fout.write('{}\n'.format(dates[i]))
 
