@@ -27,9 +27,20 @@ import logging.handlers
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format='(%(asctime)s) [%(process)d] %(levelname)s: %(message)s')
 
-def create_headers(bearer_token):
-    headers = {"Authorization": "Bearer {}".format(bearer_token)}
+def create_headers1(bearer_token1, bearer_token2=None):
+    headers1 = {"Authorization": "Bearer {}".format(bearer_token1)}
+    headers = [headers1] 
+    if bearer_token2 != None:
+        headers2 = {"Authorization": "Bearer {}".format(bearer_token2)}
+        headers = [headers1 , headers2]
     return headers
+
+def create_headers(bearer_tokens=[]):
+    headers = [] 
+    for bearer_token in bearer_tokens:
+        headers.append({"Authorization": "Bearer {}".format(bearer_token)})
+    return headers
+
 
 def connect_to_endpoint(url, headers, params):
     response = requests.request("GET", url, headers=headers, params=params)
@@ -170,7 +181,7 @@ def search_for_tokens(headers, next_token):
     dates = []
     start_date = datetime(START_DATE[0],START_DATE[1],START_DATE[2],0,0,0)
     end_date = datetime(END_DATE[0],END_DATE[1],END_DATE[2],0,0,0)
-
+    hi = 0
     for year in years:
         for month in months:
             for day in days:
@@ -201,26 +212,35 @@ def search_for_tokens(headers, next_token):
             query_params = {'query': ' OR '.join(QUERY),
                             'tweet.fields': 'attachments,author_id,context_annotations,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,public_metrics,referenced_tweets,reply_settings,source,text,withheld', 
                             'expansions' : 'author_id,referenced_tweets.id,referenced_tweets.id.author_id,entities.mentions.username,attachments.poll_ids,attachments.media_keys,in_reply_to_user_id,geo.place_id',
-                            'user.fields': 'description,location,protected,verified,url,public_metrics,created_at,name,username,id',
+                            'user.fields': 'description,location,protected,verified,url,public_metrics,created_at,name,username,id,entities,pinned_tweet_id,profile_image_url,withheld',
+                            'place.fields':'contained_within,country,country_code,full_name,geo,id,name,place_type',
+                            'media.fields':'alt_text,duration_ms,height,media_key,preview_image_url,public_metrics,type,url,variants,width',
+                            'poll.fields':'duration_minutes,end_datetime,id,options,voting_status',
                             'max_results': 100,
                             'start_time': dates[i], 
-                            'end_time': dates[i+1]}
-            print(query_params['start_time'] , ' TO ', query_params['end_time'])
+                            'end_time': dates[i+1]
+                            }
             
+            print(query_params['start_time'] , ' TO ', query_params['end_time'])
+            logger.info('Working on: {} To {}'.format(query_params['start_time'] , ' TO ', query_params['end_time']))
             while (next_token):
-                print('next_token:' , str(next_token))
+                if next_token != True:
+                     query_params['next_token'] = next_token
                 response = None
                 try:
-                    response = connect_to_endpoint(search_url, headers, query_params)
+                    response = connect_to_endpoint(search_url, headers[hi], query_params)
                 except Exception as exp:
                     logger.error(exp)
                     if exp.args[0] == 429:
                         print('Too many requests!')
                         print('Waiting for a preriod of time')
-                        time.sleep(120)
+                        #if 'UsageCapExceeded' in str(exp):
+                        hi = (hi+1)%len(headers)
+                        time.sleep(30)
                         response = None
                     else:
-                        print(exp)
+                        print('-----------\n{}\n============'.format(str(exp)))
+                    logger.info('Retrying with key:{}'.format(headers[hi]))
                 if response != None:
                     json_response = response.json()
                     tweets = None
@@ -249,8 +269,99 @@ def search_for_tokens(headers, next_token):
                     else:
                         next_token = False
                 time.sleep(1)
+            next_token = True
             with open('done','a+') as fout:
                 fout.write('{}\n'.format(dates[i]))
+
+
+def get_timelines_by_id(headers):
+    
+    hi = 0
+    try:
+        with open('accounts_ids_done','r') as fin:
+            done_ids = [x.strip() for x in fin.readlines()]
+    except Exception as exp:
+        done_ids = []
+    
+    
+    pagination_token = True
+    print(QUERY)
+    print('accounts_ids_done: {}'.format(done_ids))
+    print(pagination_token)
+    ids = QUERY
+    print("starting after {} sec".format(WAIT_TIME))
+    time.sleep(WAIT_TIME)
+    print(len(ids))
+    for i in range(0,len(ids)):
+        print('i:' , str(i))
+        if ids[i] not in done_ids:
+            search_url = "https://api.twitter.com/2/users/{}/tweets".format(ids[i])
+            #search_url = "https://api.twitter.com/2/users/{}/timelines/reverse_chronological".format(ids[i])
+            query_params = {'tweet.fields': 'attachments,author_id,context_annotations,conversation_id,created_at,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,public_metrics,referenced_tweets,reply_settings,source,text,withheld', 
+                            'expansions' : 'author_id,referenced_tweets.id,referenced_tweets.id.author_id,entities.mentions.username,attachments.poll_ids,attachments.media_keys,in_reply_to_user_id,geo.place_id',
+                            'user.fields': 'description,location,protected,verified,url,public_metrics,created_at,name,username,id,entities,pinned_tweet_id,profile_image_url,withheld',
+                            'place.fields':'contained_within,country,country_code,full_name,geo,id,name,place_type',
+                            'media.fields':'alt_text,duration_ms,height,media_key,preview_image_url,public_metrics,type,url,variants,width',
+                            'poll.fields':'duration_minutes,end_datetime,id,options,voting_status',
+                            'max_results': 100
+                            }
+            
+            while (pagination_token):
+                if pagination_token != True:
+                     query_params['pagination_token'] = pagination_token
+                response = None
+                try:
+                    response = connect_to_endpoint(search_url, headers[hi], query_params)
+                except Exception as exp:
+                    logger.error(exp)
+                    if exp.args[0] == 429:
+                        print('Too many requests!')
+                        print('Waiting for a preriod of time')
+                        #if 'UsageCapExceeded' in str(exp):
+                        hi = (hi+1)%len(headers)
+                        time.sleep(30)
+                        response = None
+                    else:
+                        print('-----------\n{}\n============'.format(str(exp)))
+                    logger.info('Retrying with key:{}'.format(headers[hi]))
+                if response != None:
+                    json_response = response.json()
+                    tweets = None
+                    users = None
+                    includes = None
+                    if 'data' in json_response.keys():
+                        tweets = json_response['data']
+                    if 'includes' in json_response.keys():
+                        if 'users' in json_response['includes'].keys():
+                            users = json_response['includes']['users']
+                        if 'tweets' in json_response['includes'].keys():
+                            includes = json_response['includes']['tweets']
+                    meta = json_response['meta']
+                    
+                    filename = "{}".format(ids[i])
+                    if tweets != None:
+                        write_data_to_file(tweets, 'tweets_'+filename, OUTPUT_FOLDER)
+                    if users != None:
+                        write_data_to_file(users, 'users_'+filename, OUTPUT_FOLDER)
+                    if includes != None:
+                        write_data_to_file(includes, 'includes_'+filename, OUTPUT_FOLDER)
+
+                    if 'next_token' in meta.keys():
+                        next_token = meta['next_token']
+                        if 'pagination_token' in query_params.keys():
+                            if query_params['pagination_token'] != next_token:
+                                query_params['pagination_token'] = next_token
+                            else:
+                                next_token = False
+                        else:
+                            query_params['pagination_token'] = next_token
+                    else:
+                        next_token = False
+                time.sleep(1)
+            next_token = True
+            with open('accounts_ids_done','a+') as fout:
+                fout.write('{}\n'.format(ids[i]))
+
 
 if __name__=="__main__":
 
@@ -271,8 +382,6 @@ if __name__=="__main__":
             configs = yaml.load(file, Loader=yaml.FullLoader)
             BEARER_TOKEN = configs['BEARER_TOKEN']
             OUTPUT_FOLDER = configs['OUTPUT_FOLDER']
-            START_DATE= [int(v) for v in configs['START_DATE'].split('/')]
-            END_DATE= [int(v) for v in configs['END_DATE'].split('/')]
             WAIT_TIME = int(configs['WAIT_TIME'])
             QUERY= configs['QUERY'].split(',')
             LOG= configs['LOG']
@@ -280,7 +389,7 @@ if __name__=="__main__":
     except Exception as exp:
         print(exp)
         print('Please make sure that config/config.yml has the required information')
-        BEARER_TOKEN=""
+        BEARER_TOKEN=[]
     if (not os.path.exists(LOG)):
         os.makedirs(LOG)
         
@@ -295,14 +404,14 @@ if __name__=="__main__":
     logger.addHandler(handler)
     logger.info(sys.version)
     
-    
-    if BEARER_TOKEN != "":
-        headers = create_headers(BEARER_TOKEN)
+    headers = create_headers(BEARER_TOKEN)
+    if len(headers) > 0:
         if args.command == 'search':
             search_for_tokens(headers, next_token)
+        elif args.command == 'get_timelines':
+            get_timelines_by_id(headers)
         elif args.command == 'extract_info':
             if args.tweets != '' and args.users != '' and args.includes != '':
                 extract_tweets_contents(args.includes, args.users, args.tweets, args.type)
         else:
             print('Command not found!')
-    

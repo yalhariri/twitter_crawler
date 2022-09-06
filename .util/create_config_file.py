@@ -14,7 +14,7 @@ documents = {'name': 'TwitterV2',
  'END_DATE': '2022/2/1',
  'WAIT_TIME': 10,
  'LOG': './../.logs',
- 'QUERY': 'kind, #kind',
+ 'QUERY': 'q1, #q1',
  'EXTRACT_DATA_INPUT': './../data_sample22/',
  'EXTRACT_DATA_OUTPUT': './../data_sample22/data/',
  'next_token': True
@@ -29,4 +29,3 @@ if not os.path.exists(output_folder):
 
 with open(output_folder + ".configs.yml", 'w') as file:
     yaml.dump(documents, file)
-    #documents = yaml.dump(documents, file)
