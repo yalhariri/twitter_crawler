@@ -264,6 +264,29 @@ def load_api_keys(keys="keys", index=0):
         pass
     return api_keys
 
+def write_aspects_to_solr(tweets_list, solr, max_row):
+    try:        
+        status = ''
+        i = 0
+        print('write data to solr, ',len(tweets_list))
+        while ('"status">0<' not in status and i < 3):
+            status = solr.add(tweets_list, softCommit=False , fieldUpdates={'aspect1_s':'set', 'aspect2_s':'set'})
+            i+=1
+        if '"status">0<' not in status:
+            logger.warning(f'[write_aspects_to_solr]: Error occured, server response: {status}')
+            print(f'[write_aspects_to_solr]: Error occured, server response: {status}')
+            return False
+        else:
+            print('Aspect update Done for ' + str(len(tweets_list)) + ' out of ' + str(max_row))
+            logger.info(f'[write_aspects_to_solr]: Done for {str(len(tweets_list))} out of {str(max_row)}')
+            print(f'[write_aspects_to_solr]: Done for {str(len(tweets_list))} out of {str(max_row)}')
+            sys.stdout.flush()
+            return True
+    except Exception as exp:
+        print('Exception ', str(exp), ' occured, try later')
+        logger.warning(f'[write_aspects_to_solr]: Exception occured: {str(exp)}')
+        print(f'[write_aspects_to_solr]: Exception occured: {str(exp)}')
+
 def write_location_to_solr(tweets_list, solr, max_row):
     try:        
         status = ''
@@ -882,8 +905,73 @@ def extractTweetsFromDict(object_, tweets_dict = dict(), original = False, users
             if len(object_) == 1:
                 object_ = object_[0]
             else:
-                print('Welcome To Facebook!')
-                return
+                try:
+                    items = object_.copy()
+                    for object_ in items:
+                        if 'referenced_tweets' in object_.keys():
+                            for referenced_tweet in object_['referenced_tweets']:
+                                if referenced_tweet['type'] == 'retweeted':
+                                    author_id = object_['author_id']
+                                    if referenced_tweet['id'] in retweets_dict.keys():
+                                        if object_['id'] not in retweets_dict[referenced_tweet['id']].keys():
+                                            if author_id in users_dict.keys():
+                                                user_obj = users_dict[author_id]
+                                                if 'screen_name' in user_obj.keys():
+                                                    retweets_dict[referenced_tweet['id']][object_['id']] = {'user_id' : author_id, 'user_screen_name': user_obj['screen_name'], 'user_name': user_obj['name'], 'created_at':time.strftime('%Y-%m-%d', time.strptime(object_['created_at'],'%Y-%m-%dT%H:%M:%S.%fZ'))}
+                                                else:
+                                                    retweets_dict[referenced_tweet['id']][object_['id']] = {'user_id' : author_id, 'user_screen_name': user_obj['username'], 'user_name': user_obj['name'], 'created_at':time.strftime('%Y-%m-%d', time.strptime(object_['created_at'],'%Y-%m-%dT%H:%M:%S.%fZ'))}
+                                                if 'location' in user_obj.keys():
+                                                    retweets_dict[referenced_tweet['id']][object_['id']]['author_location'] = user_obj['location']
+                                            else:
+                                                retweets_dict[referenced_tweet['id']][object_['id']] = {'user_id' : author_id, 'user_screen_name': None, 'created_at':time.strftime('%Y-%m-%d', time.strptime(object_['created_at'],'%Y-%m-%dT%H:%M:%S.%fZ'))}
+                                    else:
+                                        if author_id in users_dict.keys():
+                                            user_obj = users_dict[author_id]
+                                            try:
+                                                if 'screen_name' in user_obj.keys():
+                                                    retweets_dict[referenced_tweet['id']] = {object_['id']: {'user_id' : author_id, 'user_screen_name': user_obj['screen_name'], 'user_name': user_obj['name'], 'created_at':time.strftime('%Y-%m-%d', time.strptime(object_['created_at'],'%Y-%m-%dT%H:%M:%S.%fZ'))}}
+                                                else:
+                                                    retweets_dict[referenced_tweet['id']] = {object_['id']: {'user_id' : author_id, 'user_screen_name': user_obj['username'], 'user_name': user_obj['name'], 'created_at':time.strftime('%Y-%m-%d', time.strptime(object_['created_at'],'%Y-%m-%dT%H:%M:%S.%fZ'))}}
+                                                if 'location' in user_obj.keys():
+                                                    retweets_dict[referenced_tweet['id']][object_['id']]['author_location'] = user_obj['location']
+                                            except Exception as exp:
+                                                handleException(exp,object_,f'{__name__} 4')
+                                        else:
+                                            retweets_dict[referenced_tweet['id']] = {object_['id']: {'user_id' : author_id, 'user_screen_name': None}}
+                                
+                                if referenced_tweet['type'] == 'replied_to':
+                                    if referenced_tweet['id'] in replies_dict.keys():
+                                        if object_['id'] not in replies_dict[referenced_tweet['id']].keys():
+                                            replies_dict[referenced_tweet['id']][object_['id']] = getTweetContent(object_, original, users_dict, places_dict, media_dict)
+                                    else:
+                                        replies_dict[referenced_tweet['id']] = {object_['id']: getTweetContent(object_, original, users_dict, places_dict, media_dict)}
+                                    replies_dict[referenced_tweet['id']][object_['id']]['in_reply_to_id'] = referenced_tweet['id']
+                                
+                                if referenced_tweet['type'] == 'quoted':
+                                    if referenced_tweet['id'] in quotes_dict.keys():
+                                        if object_['id'] not in quotes_dict[referenced_tweet['id']].keys():
+                                            quotes_dict[referenced_tweet['id']][object_['id']] = getTweetContent(object_, original, users_dict, places_dict, media_dict)
+                                    else:
+                                        quotes_dict[referenced_tweet['id']] = {object_['id']: getTweetContent(object_, original, users_dict, places_dict, media_dict)}
+                                    quotes_dict[referenced_tweet['id']][object_['id']]['quotation_id'] = referenced_tweet['id']
+                        else:
+                            if object_['id'] not in tweets_dict.keys():
+                                tweets_dict[object_['id']] = getTweetContent(object_, original, users_dict, places_dict, media_dict)
+                            else:
+                                try:
+                                    if 'retweet_count' in tweets_dict[object_['id']].keys() and 'retweet_count' in object_:
+                                        tweets_dict[object_['id']]['retweet_count']= max(tweets_dict[object_['id']]['retweet_count'], object_['retweet_count'])
+                                    if 'reply_count' in tweets_dict[object_['id']].keys() and 'reply_count' in object_:
+                                        tweets_dict[object_['id']]['reply_count']= max(tweets_dict[object_['id']]['reply_count'], object_['reply_count'])
+                                    if 'favorite_count' in tweets_dict[object_['id']].keys() and 'like_count' in object_:
+                                        tweets_dict[object_['id']]['favorite_count']= max(tweets_dict[object_['id']]['like_count'], object_['like_count'])
+                                    if 'quote_count' in tweets_dict[object_['id']].keys() and 'quote_count' in object_:
+                                        tweets_dict[object_['id']]['quote_count']= max(tweets_dict[object_['id']]['quote_count'], object_['quote_count'])
+                                except Exception as exp:
+                                    handleException(exp,tweets_dict[object_['id']],f'{__name__} 5')
+                except Exception as exp3:
+                    handleException(exp3,object_,func_=f'{__name__}')
+                return tweets_dict, retweets_dict, replies_dict, quotes_dict
         try:
             if 'referenced_tweets' in object_.keys():
                 for referenced_tweet in object_['referenced_tweets']:

@@ -29,3 +29,4 @@ if not os.path.exists(output_folder):
 
 with open(output_folder + ".configs.yml", 'w') as file:
     yaml.dump(documents, file)
+    #documents = yaml.dump(documents, file)
