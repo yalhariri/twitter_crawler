@@ -27,6 +27,5 @@ output_folder = "../.config/"
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 
-with open(output_folder + ".configs.yml", 'w') as file:
+with open(f"{output_folder}.configs.yml", 'w') as file:
     yaml.dump(documents, file)
-    #documents = yaml.dump(documents, file)
