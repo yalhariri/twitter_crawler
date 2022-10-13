@@ -20,7 +20,7 @@ try:
 		core = configs['CORE']
 		uname = configs['USERNAME']
 		pswrd = configs['PASSWORD']
-		SOLR = configs['KEY']
+		SOLR = configs['SOLR']
 		supported_languages = [x.strip() for x in configs['supported_languages'].split(',')]
 except Exception as exp:
     print(exp)
@@ -52,12 +52,12 @@ if __name__== "__main__":
 
 		confirmALife(PROJECT,tool=f':: {PROJECT}-{core} - Sentiment Updater ::', key=KEY)
 
-		url = f"{SOLR}{core.lower()}/"
+		url = f"{SOLR}{core}/"
+		print(url)
 		solr = pysolr.Solr(url, auth=(uname,pswrd),timeout=120)
 		start = 0
 		retry=0
-		if args.start != None:
-			start = int(args.start)
+		
 		rows = 25000
 		tweets_list = []
 		sentiment = dict()

@@ -39,7 +39,7 @@ import schedule
 import time
 def job():
     try:
-        cmd = "python ./.util/twitter_searcher.py  -c  ../.config/.configs_2.yml -cmd search"
+        cmd = "python ./.util/twitter_searcher.py  -c  ../.config/.configs_2.yml -tr ../.config/.terms2 -cmd daily_search"
         result = os.system(cmd)
         logger.info(f'importing data done with no exception. Exit status {result}')
         print(f'importing data done with exit status {result}')
@@ -47,8 +47,9 @@ def job():
         logger.warning(f'importing data failed with exit status {result}')
         print(f'importing data failed with exit status {result}')
 
-#schedule.every(15).minutes.do(job)
+job()
+schedule.every(24).hours.do(job)
 
-#while True:
-#    schedule.run_pending()
-#    time.sleep(5)
+while True:
+    schedule.run_pending()
+    time.sleep(5)

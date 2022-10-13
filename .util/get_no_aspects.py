@@ -65,33 +65,34 @@ if __name__== "__main__":
 		
 		url = 'http://127.0.0.1:10099/solr/'+ str(core) + '/'		
 		solr = pysolr.Solr(url, auth=(uname,pswrd),timeout=120)
-		q='NOT aspect1_s:* OR aspect1_s:none'
+		q='NOT aspect1_s:*'
 		result = solr.search(q=q, **{'fl':'id'})
 		
-		rows = 10000
-		start = result.hits
-		tweets_list = []
-		while start > 0:
-			start = max(0, start - rows)
-			result = solr.search(q=q, **{'fl':'id, full_text, language','start':start , 'rows':rows})
-			tweets_list = tweets_list + list(result.docs)
-		
-		rec_df = pd.DataFrame.from_records(tweets_list)
-		
-		print(f"len(rec_df['language'] == 'english'): {len(rec_df[rec_df['language'] == 'english'])}")
-		print(f"len(rec_df['language'] != 'english'): {len(rec_df[rec_df['language'] != 'english'])}")
-		if len(rec_df[rec_df['language'] == 'english']) > 100 and len(rec_df[rec_df['language'] != 'english']) > 100:
-			rec_df['text'] = rec_df.full_text.apply(remove_new_lines)
-			rec_df = rec_df[['id','text','language']]
+		if result.hits > 100:
+			rows = 10000
+			start = result.hits
+			tweets_list = []
+			while start > 0:
+				start = max(0, start - rows)
+				result = solr.search(q=q, **{'fl':'id, full_text, language','start':start , 'rows':rows})
+				tweets_list = tweets_list + list(result.docs)
+			
+			rec_df = pd.DataFrame.from_records(tweets_list)
+			
+			print(f"len(rec_df['language'] == 'english'): {len(rec_df[rec_df['language'] == 'english'])}")
+			print(f"len(rec_df['language'] != 'english'): {len(rec_df[rec_df['language'] != 'english'])}")
+			if len(rec_df[rec_df['language'] == 'english']) > 100 and len(rec_df[rec_df['language'] != 'english']) > 100:
+				rec_df['text'] = rec_df.full_text.apply(remove_new_lines)
+				rec_df = rec_df[['id','text','language']]
 
-			if os.path.exists(tweets_file):
-				if not os.path.exists(new_tweets_file):
-					with tarfile.open(new_tweets_file, "w:gz") as tar:
-						tar.add(tweets_file, arcname=tweets_file.split('/')[-1])
-				rec_df.to_csv(tweets_file, index=False)
+				if os.path.exists(tweets_file):
+					if not os.path.exists(new_tweets_file):
+						with tarfile.open(new_tweets_file, "w:gz") as tar:
+							tar.add(tweets_file, arcname=tweets_file.split('/')[-1])
+					rec_df.to_csv(tweets_file, index=False)
+				else:
+					rec_df.to_csv(tweets_file, index=False)
 			else:
-				rec_df.to_csv(tweets_file, index=False)
+				print('Number of element is less than 100. No tweets file created!')
 		else:
-			print('Number of element is less than 100. No tweets file created!')
-	else:
-		print('Please make sure that command contains username, password and core.')
+			print('Please make sure that command contains username, password and core.')

@@ -14,7 +14,7 @@ from os import path, listdir, remove
 from os.path import exists, join
 import sys
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import yaml
 import logging
@@ -149,34 +149,17 @@ def extractTweetsContents(OUTPUT_FOLDER, includes_file='', users_file='', tweets
                 fout.write('%s\n'%json.dumps(combined_tweets_dict2[k],ensure_ascii=False))
                 
 
-def search_for_tokens(headers, next_token):
-    search_url = "https://api.twitter.com/2/tweets/search/all"
+def search_for_tokens(headers, dates, next_token):
+    search_url = "https://api.twitter.com/2/tweets/search/recent"
     
-    days = [1, 10,20]
-    months = [x for x in range(1,13)]
-    years = list(range(2018,2023))
-    dates = []
-    start_date = datetime(START_DATE[0],START_DATE[1],START_DATE[2],0,0,0)
-    end_date = datetime(END_DATE[0],END_DATE[1],END_DATE[2],0,0,0)
-
-    for year in years:
-        for month in months:
-            for day in range(1,32):
-                try:
-                    da = datetime(year,month,day,0,0,0) 
-                    if da > end_date:
-                        break
-                    if da >= start_date and da <= end_date:
-                        dates.append(datetime.strftime(da, '%Y-%m-%dT%H:%M:%SZ'))
-                except Exception as exp:
-                    pass
+    
     done_dates = []
     try:
         with open('done','r') as fin:
             done_dates = fin.readlines()
     except Exception as exp:
         pass
-    print(f'dates: {dates}\nstart_date: {start_date}\nend_date: {end_date}\n\nheaders: {headers}\n')
+    print(f'dates: {dates}\nstart_date: {dates[0]}\nend_date: {dates[-1]}\n\nheaders: {headers}\n')
     print(f'QUERY: {QUERY_list}')
     print("starting after {} sec".format(WAIT_TIME))
     time.sleep(WAIT_TIME)
@@ -396,7 +379,29 @@ if __name__=="__main__":
     headers = create_headers(BEARER_TOKEN)
     if len(headers) > 0:
         if args.command == 'search':
-            search_for_tokens(headers, next_token)
+            days = [1, 10,20]
+            months = [x for x in range(1,13)]
+            years = list(range(2018,2023))
+            dates = []
+            start_date = datetime(START_DATE[0],START_DATE[1],START_DATE[2],0,0,0)
+            end_date = datetime(END_DATE[0],END_DATE[1],END_DATE[2],0,0,0)
+
+            for year in years:
+                for month in months:
+                    for day in range(1,32):
+                        try:
+                            da = datetime(year,month,day,0,0,0) 
+                            if da > end_date:
+                                break
+                            if da >= start_date and da <= end_date:
+                                dates.append(datetime.strftime(da, '%Y-%m-%dT%H:%M:%SZ'))
+                        except Exception as exp:
+                            pass
+            if len(dates)>0:
+                search_for_tokens(headers, dates, next_token)
+        if args.command == 'daily_search':
+            dates = [(datetime.today() - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z"), datetime.today().strftime("%Y-%m-%dT00:00:00Z")]
+            search_for_tokens(headers, dates,next_token)
         elif args.command == 'get_timelines':
             search_for_tokens(headers, next_token)
         elif args.command == 'extract_info':

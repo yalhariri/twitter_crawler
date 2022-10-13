@@ -24,7 +24,6 @@ global BEARER_TOKEN
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format='(%(asctime)s) [%(process)d] %(levelname)s: %(message)s')
 
-status_file = "../.cache/status_streamer"
 url = "https://api.twitter.com/2/tweets/search/stream"
 if not path.exists('../.cache'):
         os.mkdir('../.cache')
@@ -76,8 +75,9 @@ def startStreaming():
               'media.fields': 'duration_ms,height,media_key,preview_image_url,public_metrics,type,url,width,alt_text,variants',
               'poll.fields':'duration_minutes,end_datetime,id,options,voting_status'
               }
-    response = requests.get(url, auth=bearer_oauth, stream=True, params=params)
-    print(response.status_code)
+    
+    response = requests.get(url, auth=bearer_oauth, stream=True, timeout=240 , params=params)
+    x = datetime.now().strftime('%d')
     if response.status_code != 200:
         logger.warning(f"Cannot get stream (HTTP {response.status_code}): {response.text}")
         raise Exception(f"Cannot get stream (HTTP {response.status_code}): {response.text}")
@@ -89,7 +89,11 @@ def startStreaming():
                 writeDataToFile(json_response, f'RAW_DATA_{filename}', OUTPUT_FOLDER)
             except Exception as exp:
                 handleException(exp, object_=json_response, func_=f'\n{__name__}')
-    
+        
+        if x != datetime.now().strftime('%H'):
+            writeRunningStatus(status_file,'0')
+            return kRun
+        
 if __name__=="__main__":
 
     import argparse
@@ -101,9 +105,12 @@ if __name__=="__main__":
     parser.add_argument('-in','--includes', help="includes file inside the OTPUT_FOLDER", default='')
     parser.add_argument('-ty','--type', help="type of data, json or csv", default='csv')
     parser.add_argument('-sr','--set_rules', help="set streamer rules", default=True)
+    parser.add_argument('-sf','--status_file', help="set status_file", default="../.cache/status_streamer")
+    
     
     args = parser.parse_args()
-    
+    status_file = args.status_file
+
     try:
         with open(str(args.config)) as file:
             configs = yaml.load(file, Loader=yaml.FullLoader)
@@ -147,8 +154,8 @@ if __name__=="__main__":
                         except Exception as exp:
                             handleException(exp, f'Error {exp}',__name__)
                         finally:
-                            handleException('Finally...', 'Streaming stopped', __name__)
-                            time.sleep(3)
+                            handleException('Finally... ', 'Streaming stopped', __name__)
+                            time.sleep(1)
                     else:
                         print('Command not found!')
                 except Exception as exp:
@@ -168,6 +175,5 @@ if __name__=="__main__":
                 if kRun:
                     print("restarting...!")
                     turn =(turn+1)%len(BEARER_TOKENS)
-                    time.sleep(1)
                 else:
                     print(message)

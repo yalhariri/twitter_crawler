@@ -32,13 +32,15 @@ logger.setLevel(logging.INFO)
 
 def job():
     try:
-        cmd = "python .util/update_sentiments_eng.py  -c Huawei -u solr_admin -p admin_2018"
+        cmd = "python .util/update_sentiments.py  -c Huawei -u solr_admin -p admin_2018"
         result = os.system(cmd)
         logger.info(f'extracting data done with exit status {result}')
         print(f'extracting data done with exit status {result}')
     except Exception as exp:
         logger.warning(f'extracting data failed with exit status {result}')
         print(f'extracting data failed with exit status {result}')
+
+job()
 
 schedule.every(24).hours.do(job)
 

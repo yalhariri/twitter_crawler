@@ -64,7 +64,10 @@ def job():
         logger.warning(f'extracting data failed with exit status {result}')
         print(f'extracting data failed with exit status {result}')
 
-schedule.every(12).hours.do(job)
+job()
+timing = 24
+print(f'The system will run evey {timing} hours.')
+schedule.every(timing).hours.do(job)
 
 while True:
     schedule.run_pending()

@@ -24,6 +24,7 @@ class WholeIntervalTimedRotatingFileHandler(TimedRotatingFileHandler):
         
 
 log_folder = './../.log/'
+status_file = "../.cache/status_streamer"
 if not os.path.exists(log_folder):
     os.makedirs(log_folder)
 logger = logging.getLogger(__name__)
@@ -39,13 +40,13 @@ logger.setLevel(logging.INFO)
 import time
 def job():
     try:
-        #cmd = "python ./.util/twitter_streamer.py"
-        cmd = "python ./.util/twitter_streamer.py -c  ../.config/.configs.yml -cmd stream -sr False"
+        cmd = f"python ./.util/twitter_streamer.py -c  ../.config/.configs.yml -cmd stream -sr False -sf {status_file}"
         result = os.system(cmd)
         if result == 2:
             logger.info(f'streamer done with no exception. Exit status {result}')
-            print(f'streamer done with exit status {result}')
-            return False
+            
+        print(f'Streamer done with exit status {result}')
+        return False
     except KeyboardInterrupt:
         return False
     except Exception as exp:
@@ -55,6 +56,7 @@ def job():
     return True
 
 running = True
+
 while running:
     try:
         running = job()

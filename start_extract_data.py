@@ -40,6 +40,8 @@ def job():
         logger.warning(f'extracting data failed with exit status {result}')
         print(f'extracting data failed with exit status {result}')
 
+job()
+
 schedule.every(24).hours.do(job)
 
 while True:

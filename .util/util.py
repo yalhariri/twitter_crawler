@@ -500,8 +500,10 @@ def getJSONContent(folder, file_name):
 def handleException(exp, object_='Unknown', func_= 'Unknown'):
     print(f'Error {exp}\n')
     exception_type, exception_object, exception_traceback = sys.exc_info()
-    line_number = exception_traceback.tb_lineno
-    
+    if exception_traceback != None:
+        line_number = exception_traceback.tb_lineno
+    else:
+        line_number = 'Unknown'
     print(f"------------------------------------------------\nException type: {exception_type}\n \
         Line number: {line_number}.\nexception_object: {exception_object}\n \
             Exception message : {exp}\nObject: {object_}\nFunction: {func_}.\
